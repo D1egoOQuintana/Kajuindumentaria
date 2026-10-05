@@ -1,0 +1,160 @@
+rules_version = '2';
+
+// ===============================================================
+// Assumed data model
+// ===============================================================
+// Collection: products
+// Document ID: the immutable product slug
+// Public data only: products contain no customer or administrator PII.
+// Required fields: name, slug, description, price, category, sizes,
+// colors, stockStatus, images, isVisible, isFeatured, isNewArrival,
+// createdAt and updatedAt. featuredOrder is optional for legacy records.
+// Administration is authorized exclusively by the Firebase Auth custom
+// claim `admin == true`; document data never grants privileges.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.admin == true;
+    }
+
+    function hasValidStringAt(values, index, maxLength) {
+      return values[index] is string
+        && values[index].size() >= 1
+        && values[index].size() <= maxLength;
+    }
+
+    function hasValidStringItems(values, maxLength) {
+      return values is list
+        && values.size() >= 1
+        && values.size() <= 20
+        && (values.size() < 1 || hasValidStringAt(values, 0, maxLength))
+        && (values.size() < 2 || hasValidStringAt(values, 1, maxLength))
+        && (values.size() < 3 || hasValidStringAt(values, 2, maxLength))
+        && (values.size() < 4 || hasValidStringAt(values, 3, maxLength))
+        && (values.size() < 5 || hasValidStringAt(values, 4, maxLength))
+        && (values.size() < 6 || hasValidStringAt(values, 5, maxLength))
+        && (values.size() < 7 || hasValidStringAt(values, 6, maxLength))
+        && (values.size() < 8 || hasValidStringAt(values, 7, maxLength))
+        && (values.size() < 9 || hasValidStringAt(values, 8, maxLength))
+        && (values.size() < 10 || hasValidStringAt(values, 9, maxLength))
+        && (values.size() < 11 || hasValidStringAt(values, 10, maxLength))
+        && (values.size() < 12 || hasValidStringAt(values, 11, maxLength))
+        && (values.size() < 13 || hasValidStringAt(values, 12, maxLength))
+        && (values.size() < 14 || hasValidStringAt(values, 13, maxLength))
+        && (values.size() < 15 || hasValidStringAt(values, 14, maxLength))
+        && (values.size() < 16 || hasValidStringAt(values, 15, maxLength))
+        && (values.size() < 17 || hasValidStringAt(values, 16, maxLength))
+        && (values.size() < 18 || hasValidStringAt(values, 17, maxLength))
+        && (values.size() < 19 || hasValidStringAt(values, 18, maxLength))
+        && (values.size() < 20 || hasValidStringAt(values, 19, maxLength));
+    }
+
+    function isValidImage(image, productSlug, expectedPosition) {
+      return image is map
+        && image.keys().hasAll(['url', 'alt', 'position'])
+        && image.keys().hasOnly(['url', 'path', 'alt', 'position'])
+        && image.url is string
+        && image.url.size() >= 2
+        && image.url.size() <= 2048
+        && (image.url.matches('^https://.*') || image.url.matches('^/.*'))
+        && image.alt is string
+        && image.alt.size() >= 1
+        && image.alt.size() <= 180
+        && image.position is int
+        && image.position == expectedPosition
+        && (!image.keys().hasAny(['path'])
+          || (image.path is string
+            && image.path.size() >= 1
+            && image.path.size() <= 512
+            && image.path.matches(
+              '^products/' + productSlug + '/[A-Za-z0-9][A-Za-z0-9._-]{0,160}$'
+            )));
+    }
+
+    function hasValidImages(images, productSlug) {
+      return images is list
+        && images.size() <= 12
+        && (images.size() < 1 || isValidImage(images[0], productSlug, 0))
+        && (images.size() < 2 || isValidImage(images[1], productSlug, 1))
+        && (images.size() < 3 || isValidImage(images[2], productSlug, 2))
+        && (images.size() < 4 || isValidImage(images[3], productSlug, 3))
+        && (images.size() < 5 || isValidImage(images[4], productSlug, 4))
+        && (images.size() < 6 || isValidImage(images[5], productSlug, 5))
+        && (images.size() < 7 || isValidImage(images[6], productSlug, 6))
+        && (images.size() < 8 || isValidImage(images[7], productSlug, 7))
+        && (images.size() < 9 || isValidImage(images[8], productSlug, 8))
+        && (images.size() < 10 || isValidImage(images[9], productSlug, 9))
+        && (images.size() < 11 || isValidImage(images[10], productSlug, 10))
+        && (images.size() < 12 || isValidImage(images[11], productSlug, 11));
+    }
+
+    function hasValidProductShape(data) {
+      return data.keys().hasAll([
+          'name', 'slug', 'description', 'price', 'category', 'sizes', 'colors',
+          'stockStatus', 'images', 'isVisible', 'isFeatured', 'isNewArrival',
+          'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'name', 'slug', 'description', 'price', 'category', 'sizes', 'colors',
+          'stockStatus', 'images', 'isVisible', 'isFeatured', 'featuredOrder',
+          'isNewArrival', 'createdAt', 'updatedAt'
+        ])
+        && data.name is string
+        && data.name.size() >= 2
+        && data.name.size() <= 120
+        && data.slug is string
+        && data.slug.matches('^[a-z0-9]+(-[a-z0-9]+)*$')
+        && data.slug.size() <= 140
+        && data.description is string
+        && data.description.size() >= 1
+        && data.description.size() <= 500
+        && data.price is number
+        && data.price >= 0
+        && data.price <= 100000000
+        && data.category in [
+          'jeans', 'tops', 'sweaters', 'buzos', 'pantalones', 'camperas',
+          'conjuntos', 'accesorios', 'otros'
+        ]
+        && hasValidStringItems(data.sizes, 30)
+        && hasValidStringItems(data.colors, 50)
+        && data.stockStatus in ['available', 'sold_out', 'ask_stock']
+        && hasValidImages(data.images, data.slug)
+        && data.isVisible is bool
+        && data.isFeatured is bool
+        && (!data.keys().hasAny(['featuredOrder'])
+          || (data.featuredOrder is int
+            && data.featuredOrder >= 0
+            && data.featuredOrder <= 99))
+        && data.isNewArrival is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /products/{productId} {
+      allow get, list: if resource.data.isVisible == true || isAdmin();
+
+      allow create: if isAdmin()
+        && productId == request.resource.data.slug
+        && hasValidProductShape(request.resource.data)
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+
+      allow update: if isAdmin()
+        && productId == request.resource.data.slug
+        && hasValidProductShape(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt == request.time;
+
+      allow delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
